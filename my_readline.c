@@ -1,71 +1,142 @@
-#include <stdio.h>
-#include <stdlib.h>
+// gcc -o out -g3 -fsanitize=address my_readline.c
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
-int READLINE_READ_SIZE = 512;
+#include <stdio.h> 
+int READLINE_READ_SIZE=20;
+char* FULL_CONTENT;
 
-void init_my_readline()
-{
-    READLINE_READ_SIZE = 1024;
+void empty_string(char* string){
+    for(int i=0; i<(int)strlen(string); i++){
+        string[i]='\0';
+    }
 }
 
-char* my_readline(int fd)
-{
-    char* buf = malloc(READLINE_READ_SIZE + 1 * sizeof(char));
-    char* result;
-    int i = 0;
-    int bytesRead;
-    char c;
-    while(i < READLINE_READ_SIZE && ((bytesRead = read(fd, &c, sizeof(char))) > 0))
-    {
-        if(c == '\n' || c == '\0' || c == EOF)
-        {
-            break;
-        }
-        else 
-        {
-            buf[i] = c;
-            i++;
-        }
+void n_strip(char* string, int index){
+    for(int i=index; i<(int)strlen(string); i++){
+        string[i]='\0';
     }
-    if(bytesRead <= 0)
-    {    
-        free(buf);
-        return NULL;
+}
+
+char* my_strcat_finish(char* tmp, char* full_content, int index){
+    char* res = (char*)calloc(strlen(tmp)+index+1,sizeof(char));
+    int i=0;
+    while(i<(int)strlen(tmp)){
+        res[i]=tmp[i];
+        i++;
     }
-    buf[i] = '\0';
-    // printf("%s\n", buf);
-    result = buf;
+    for(int j=0; j<index; j++){
+        res[i]=full_content[j];
+        i++;
+    }
+    if (!full_content[index+1] || !(full_content+index+1)){
+        *full_content='\0';
+    }
+    else{
+        char* new = (char*)calloc((int)strlen(full_content)+1,sizeof(char));
+        strcpy(new,&full_content[index+1]);
+        strcpy(full_content, new);
+        free(new);
+    }
+    free(tmp);
+    return res;
+}
+
+char* my_strcat(char* tmp, char* full_content){
+    char* result = (char*)calloc(strlen(tmp)+strlen(full_content)+1, sizeof(char));
+    int index=0;
+    while(index<(int)strlen(tmp)){
+        result[index]=tmp[index];
+        index++;
+    }
+
+    for (int j=0; j<(int)strlen(full_content); j++){
+        result[index]=full_content[j];
+        index++;
+    }
+    free(tmp);
     return result;
 }
 
-// int main (int argc, char** argv)
-// {
-//     if (argc == 3)
-//     {
-//         int read_size = atoi(argv[2]);
-//         init_my_readline(read_size);
-//         char* str = NULL;
-//         int count = 0;
-//         int fd = open(argv[1], O_RDONLY);
-//         if (fd == -1)
-//         {
-//             printf("error opening file.\n");
-//             return 1;
-//         }
-//         else
-//         {
-//             printf("Reading from: %s\n", argv[1]);
-//         }
-//         while (count < READLINE_READ_SIZE && (str = my_readline(fd)) != NULL)
-//         {
-//             printf("READING FROM FILE: %s\n", argv[1]);
-//             printf("%s\n", str);
-//             printf("%s\n", "THIS IS A TEST");
-//             free(str);
-//         }
-//         close(fd);
-//     }
-//     return 0;
-// }
+void init_my_readline(){
+    free(FULL_CONTENT);
+}
+
+char *my_readline(int fd){
+    if (!FULL_CONTENT){
+        int s;
+        FULL_CONTENT=(char*)calloc(READLINE_READ_SIZE+1, sizeof(char));
+
+        s = read(fd, FULL_CONTENT, READLINE_READ_SIZE);
+        if(!s){
+            init_my_readline();
+            return NULL;
+        }
+    }
+    if (!*FULL_CONTENT){
+        init_my_readline();
+        return NULL;
+    }
+
+    for (int i=0; i<(int)strlen(FULL_CONTENT); i++){
+        if (FULL_CONTENT[i]=='\n'){
+            char* result = (char*)calloc(i+1,sizeof(char));
+            strncpy(result, FULL_CONTENT, i);
+
+            char* new = (char*)calloc((int)strlen(FULL_CONTENT)+1,sizeof(char));
+            strcpy(new, &FULL_CONTENT[i+1]);
+            strcpy(FULL_CONTENT, new);
+            free(new);
+            return result;
+        }
+    }
+    
+    char* tmp = (char*)calloc((int)strlen(FULL_CONTENT)+1,sizeof(char));
+    strcpy(tmp, FULL_CONTENT);
+    int s;
+    while(1){
+        empty_string(FULL_CONTENT);
+        s = read(fd, FULL_CONTENT, READLINE_READ_SIZE);
+
+        if(s) n_strip(FULL_CONTENT, s);
+        
+        if (!s){
+            if(!*tmp){
+                free(tmp);
+                init_my_readline();
+                return NULL;
+            }
+            FULL_CONTENT[0]='\0';
+            return tmp;    
+        }
+        for (int i=0; i<(int)strlen(FULL_CONTENT); i++){
+            if (FULL_CONTENT[i]=='\n'){
+                return my_strcat_finish(tmp, FULL_CONTENT, i);
+            }
+        }
+        tmp = my_strcat(tmp, FULL_CONTENT);
+    }
+}
+
+
+int main(int ac, char av)
+{
+char *str = NULL;
+
+
+int fd = open("./file.txt", O_RDONLY);
+while ((str = my_readline(fd)) != NULL)
+{
+printf("%s\n", str);
+free(str);
+}
+close(fd);
+//
+//  Yes it's also working with stdin :-)
+//  printf("%s", my_readline(0));
+//
+
+
+return 0;
+}
