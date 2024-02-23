@@ -3,8 +3,6 @@ The code you provided appears to be a C program that reads a file line by line u
 # File Line Reader
 This program reads a file line by line and prints each line to the console. It uses a custom implementation of the my_readline function.
 
-# Compilation
-To compile the program, use a C compiler such as gcc:
 
 # Usage
 The program expects the name of the file to read as a command-line argument. Here's an example of how to run it:
