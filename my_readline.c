@@ -60,7 +60,9 @@ char* my_stringcat(char* temp, char* storage){
 }
 
 void init_my_readline(){
-    free(store);
+    if(store != NULL) {
+        free(store);
+    }
 }
 
 char *my_readline(int fd){
@@ -73,10 +75,6 @@ char *my_readline(int fd){
             init_my_readline();
             return NULL;
         }
-    }
-    if (!*store){
-        init_my_readline();
-        return NULL;
     }
 
     for (int i=0; i<(int)strlen(store); i++){
